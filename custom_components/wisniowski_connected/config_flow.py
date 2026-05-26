@@ -34,6 +34,8 @@ class WisniowskiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._code_verifier: str | None = None
         self._state: str | None = None
         self._authorization_url: str | None = None
+        self._discovered_host: str | None = None
+        self._discovered_hostname: str | None = None
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Handle authorization-code paste step."""
@@ -85,6 +87,35 @@ class WisniowskiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema({vol.Required(CONF_AUTH_RESPONSE_URL): str}),
             errors=errors,
             description_placeholders={"authorization_url": self._authorization_url or ""},
+        )
+
+    async def async_step_dhcp(self, discovery_info: Any) -> FlowResult:
+        """Handle DHCP discovery."""
+
+        if self.hass.config_entries.async_entries(DOMAIN):
+            return self.async_abort(reason="already_configured")
+
+        self._discovered_host = str(getattr(discovery_info, "ip", "") or "")
+        self._discovered_hostname = str(getattr(discovery_info, "hostname", "") or "")
+        self.context["title_placeholders"] = {
+            "name": self._discovered_hostname or "Wisniowski Connected",
+            "host": self._discovered_host or "unknown host",
+        }
+        return await self.async_step_dhcp_confirm()
+
+    async def async_step_dhcp_confirm(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Confirm a DHCP-discovered Wisniowski module."""
+
+        if user_input is not None:
+            return await self.async_step_user()
+
+        return self.async_show_form(
+            step_id="dhcp_confirm",
+            data_schema=vol.Schema({}),
+            description_placeholders={
+                "host": self._discovered_host or "unknown host",
+                "hostname": self._discovered_hostname or "unknown hostname",
+            },
         )
 
     def _prepare_authorization(self) -> None:

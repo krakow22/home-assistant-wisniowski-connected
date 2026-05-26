@@ -25,6 +25,7 @@ This is a cloud integration. It does not provide offline LAN control. In testing
 ## Features
 
 - UI setup from Home Assistant.
+- DHCP discovery for likely `smartAWSC` modules.
 - One-time browser login through the official Lavva Keycloak flow.
 - Refresh-token storage and rotation in the Home Assistant config entry.
 - Gate discovery from the selected Wisniowski/Lavva installation.
@@ -67,6 +68,14 @@ Then restart Home Assistant and add **Wisniowski Connected** from **Settings > D
 ## Configuration
 
 Before adding the integration, your gate must already be paired in the official Wisniowski Connected app. This integration does not pair devices to the account.
+
+## Discovery
+
+Home Assistant can show a discovered **Wisniowski Connected** setup prompt when DHCP reports a hostname matching `smartAWSC*` or `smartawsc*`.
+
+Discovery only starts the setup flow. It does not authenticate the local module, does not pair the device, and does not provide offline control. You still need to sign in with the Wisniowski Connected account that owns the gate, because the gate channels and commands are exposed by the vendor cloud API.
+
+The integration intentionally does not match Espressif MAC/OUI prefixes. The tested module uses an Espressif Wi-Fi chipset, but matching that OUI would create false positives for unrelated ESP-based devices.
 
 Setup flow:
 

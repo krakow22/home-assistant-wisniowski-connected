@@ -3,6 +3,14 @@
   "name": "Wisniowski Connected",
   "codeowners": ["@jestempablo"],
   "config_flow": true,
+  "dhcp": [
+    {
+      "hostname": "smartAWSC*"
+    },
+    {
+      "hostname": "smartawsc*"
+    }
+  ],
   "documentation": "https://github.com/jestempablo/home-assistant-wisniowski-connected",
   "iot_class": "cloud_push",
   "issue_tracker": "https://github.com/jestempablo/home-assistant-wisniowski-connected/issues",
