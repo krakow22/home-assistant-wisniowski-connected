@@ -7,10 +7,6 @@
         "data": {
           "auth_response_url": "Final authorization URL"
         }
-      },
-      "dhcp_confirm": {
-        "title": "Wisniowski Connected discovered",
-        "description": "Home Assistant discovered a possible Wisniowski Connected module on your network.\n\nHostname: `{hostname}`\nHost: `{host}`\n\nContinue to sign in with the Wisniowski Connected account that owns this gate. Discovery only starts setup; control still uses the official cloud API."
       }
     },
     "error": {
