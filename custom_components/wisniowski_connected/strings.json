@@ -1,0 +1,21 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Wisniowski Connected",
+        "description": "Open this authorization URL in a new browser tab and sign in with your Wisniowski Connected account. The final page may be blank; this is expected. Copy the full final URL from the browser address bar and paste it below.\n\n{authorization_url}",
+        "data": {
+          "auth_response_url": "Final authorization URL"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not connect to Wisniowski Connected.",
+      "invalid_auth": "Authentication failed. Generate a new authorization URL and try again.",
+      "no_devices": "No supported gate channels were found on this account."
+    },
+    "abort": {
+      "already_configured": "This account is already configured."
+    }
+  }
+}

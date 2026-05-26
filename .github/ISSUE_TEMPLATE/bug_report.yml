@@ -1,0 +1,61 @@
+name: Bug report
+description: Report a problem with Wisniowski Connected for Home Assistant
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting an issue. This integration is unofficial and currently tested with only one Wisniowski Smart AWSC Wi-Fi installation. Do not paste passwords, authorization URLs, access tokens, refresh tokens, or full unredacted logs.
+
+  - type: input
+    id: ha_version
+    attributes:
+      label: Home Assistant version
+      placeholder: "2026.5.0"
+    validations:
+      required: true
+
+  - type: input
+    id: integration_version
+    attributes:
+      label: Integration version
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: device_model
+    attributes:
+      label: Gate/module model
+      placeholder: "Smart AWSC Wi-Fi / smartAWSC"
+    validations:
+      required: true
+
+  - type: input
+    id: app_version
+    attributes:
+      label: Wisniowski Connected app version
+      placeholder: "2025.12.05"
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the behavior, the expected behavior, and when it started.
+    validations:
+      required: true
+
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostic entity states
+      description: Include Cloud API authenticated, Gate cloud connection, Access token expires, Refresh token expires, and Refresh token updated if relevant. Redact IDs if you want them private.
+      render: text
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Home Assistant logs
+      description: Do not paste passwords, authorization URLs, tokens, or unredacted account identifiers.
+      render: text
