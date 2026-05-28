@@ -12,7 +12,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .api import WisniowskiGate
-from .const import DATA_CLIENT, DATA_COORDINATOR, DOMAIN
+from .const import DATA_COORDINATOR, DOMAIN
 from .coordinator import WisniowskiCoordinator
 
 
@@ -25,7 +25,6 @@ async def async_setup_entry(
 
     runtime = hass.data[DOMAIN][entry.entry_id]
     coordinator: WisniowskiCoordinator = runtime[DATA_COORDINATOR]
-    client = runtime[DATA_CLIENT]
     gates = list((coordinator.data or {}).values())
     primary_gate = gates[0] if gates else None
 

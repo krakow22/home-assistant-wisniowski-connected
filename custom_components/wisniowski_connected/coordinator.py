@@ -39,6 +39,7 @@ class WisniowskiCoordinator(DataUpdateCoordinator[dict[str, WisniowskiGate]]):
         )
         self.client = client
         self._subscription_task: asyncio.Task[None] | None = None
+        self._refresh_tasks: set[asyncio.Task[None]] = set()
         self._stopped = False
 
     async def _async_update_data(self) -> dict[str, WisniowskiGate]:
@@ -63,6 +64,8 @@ class WisniowskiCoordinator(DataUpdateCoordinator[dict[str, WisniowskiGate]]):
                 await self._subscription_task
             except asyncio.CancelledError:
                 pass
+        for task in set(self._refresh_tasks):
+            task.cancel()
 
     async def _subscription_loop(self) -> None:
         backoff = 2
@@ -138,6 +141,9 @@ class WisniowskiCoordinator(DataUpdateCoordinator[dict[str, WisniowskiGate]]):
 
         async def _refresh_later() -> None:
             await asyncio.sleep(2)
-            await self.async_request_refresh()
+            if not self._stopped:
+                await self.async_request_refresh()
 
-        self.hass.async_create_task(_refresh_later())
+        task = self.hass.async_create_task(_refresh_later())
+        self._refresh_tasks.add(task)
+        task.add_done_callback(self._refresh_tasks.discard)

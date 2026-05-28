@@ -92,7 +92,7 @@ Each supported gate exposes:
 - `sensor` **Refresh token expires**.
 - `sensor` **Refresh token updated**.
 
-The refresh-token expiry sensor can show `Not exposed by provider` if the token itself does not contain an expiry claim and Keycloak has not returned `refresh_expires_in` yet. The integration still rotates refresh tokens when the server provides a new one.
+The refresh-token expiry sensor can show `unknown` if the token itself does not contain an expiry claim and Keycloak has not returned `refresh_expires_in` yet. Its attributes explain whether the expiry is known and where the value came from. The integration still rotates refresh tokens when the server provides a new one.
 
 ## State Updates
 

@@ -34,6 +34,7 @@ class WisniowskiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._code_verifier: str | None = None
         self._state: str | None = None
         self._authorization_url: str | None = None
+        self._reauth_entry: config_entries.ConfigEntry | None = None
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Handle authorization-code paste step."""
@@ -70,15 +71,23 @@ class WisniowskiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 self._prepare_authorization()
             else:
                 user_id = str(userinfo.get("sub") or userinfo.get("email") or "wisniowski")
-                await self.async_set_unique_id(user_id)
-                self._abort_if_unique_id_configured()
-
                 data = client.data
                 data[CONF_USER_ID] = user_id
                 title = str(userinfo.get("email") or "Wisniowski Connected")
                 if len(gates) == 1:
                     title = next(iter(gates.values())).name
-                return self.async_create_entry(title=title, data=data)
+
+                if self._reauth_entry is not None:
+                    if self._reauth_entry.unique_id and self._reauth_entry.unique_id != user_id:
+                        errors["base"] = "wrong_account"
+                        self._prepare_authorization()
+                    else:
+                        self.hass.config_entries.async_update_entry(self._reauth_entry, data=data, title=title)
+                        return self.async_abort(reason="reauth_success")
+                else:
+                    await self.async_set_unique_id(user_id)
+                    self._abort_if_unique_id_configured()
+                    return self.async_create_entry(title=title, data=data)
 
         return self.async_show_form(
             step_id="user",
@@ -86,6 +95,12 @@ class WisniowskiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
             description_placeholders={"authorization_url": self._authorization_url or ""},
         )
+
+    async def async_step_reauth(self, entry_data: dict[str, Any]) -> FlowResult:
+        """Handle reauthorization when the stored refresh token stops working."""
+
+        self._reauth_entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
+        return await self.async_step_user()
 
     def _prepare_authorization(self) -> None:
         self._code_verifier = _random_urlsafe(64)

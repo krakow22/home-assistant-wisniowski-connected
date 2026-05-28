@@ -37,7 +37,7 @@ class WisniowskiStepByStepButton(CoordinatorEntity[WisniowskiCoordinator], Butto
     def __init__(self, coordinator: WisniowskiCoordinator, channel_id: str) -> None:
         super().__init__(coordinator)
         self._channel_id = channel_id
-        gate = self.gate
+        gate = self.coordinator.data[channel_id]
         self._attr_unique_id = f"{coordinator.client.gate_unique_id(gate)}_step_by_step"
         self._attr_device_info = {
             "identifiers": {(DOMAIN, gate.device_id)},
@@ -47,18 +47,20 @@ class WisniowskiStepByStepButton(CoordinatorEntity[WisniowskiCoordinator], Butto
         }
 
     @property
-    def gate(self) -> WisniowskiGate:
+    def gate(self) -> WisniowskiGate | None:
         """Return current gate data."""
 
-        return self.coordinator.data[self._channel_id]
+        return self.coordinator.data.get(self._channel_id) if self.coordinator.data else None
 
     @property
     def available(self) -> bool:
         """Return whether the button is available."""
 
-        return self.gate.connection_state == "CONNECTED"
+        gate = self.gate
+        return super().available and gate is not None and gate.connection_state == "CONNECTED"
 
     async def async_press(self) -> None:
         """Press the step-by-step button."""
 
-        await self.coordinator.async_step_by_step(self.gate)
+        if gate := self.gate:
+            await self.coordinator.async_step_by_step(gate)

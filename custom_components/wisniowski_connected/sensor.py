@@ -106,6 +106,7 @@ class WisniowskiTokenExpirySensor(CoordinatorEntity[WisniowskiCoordinator], Sens
 class WisniowskiRefreshTokenExpirySensor(CoordinatorEntity[WisniowskiCoordinator], SensorEntity):
     """Refresh token expiry diagnostic sensor."""
 
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_has_entity_name = True
 
@@ -132,15 +133,13 @@ class WisniowskiRefreshTokenExpirySensor(CoordinatorEntity[WisniowskiCoordinator
             self._attr_unique_id = f"{DOMAIN}_{suffix}"
 
     @property
-    def native_value(self) -> str | datetime | None:
+    def native_value(self) -> datetime | None:
         """Return refresh token expiry status."""
 
         if expires_at := _timestamp_from_epoch(self.coordinator.client.data.get(CONF_REFRESH_EXPIRES_AT)):
             return expires_at
         metadata = _jwt_metadata(self.coordinator.client.data.get(CONF_REFRESH_TOKEN) or self._initial_token)
-        if metadata["expires_at"] is not None:
-            return metadata["expires_at"]
-        return metadata["status"]
+        return metadata["expires_at"]
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -154,6 +153,7 @@ class WisniowskiRefreshTokenExpirySensor(CoordinatorEntity[WisniowskiCoordinator
         return {
             "expiry_known": response_expires_at is not None or metadata["expires_at"] is not None,
             "expiry_source": expiry_source,
+            "status": metadata["status"],
             "token_format": metadata["format"],
             "claim_names": metadata["claim_names"],
         }
@@ -200,10 +200,6 @@ def _timestamp_from_epoch(value: Any) -> datetime | None:
         return datetime.fromtimestamp(float(value), UTC)
     except (TypeError, ValueError, OSError):
         return None
-
-
-def _timestamp_from_jwt(token: Any) -> datetime | None:
-    return _jwt_metadata(token)["expires_at"]
 
 
 def _jwt_metadata(token: Any) -> dict[str, Any]:

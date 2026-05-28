@@ -12,10 +12,12 @@
     "error": {
       "cannot_connect": "Could not connect to Wisniowski Connected.",
       "invalid_auth": "Authentication failed. Generate a new authorization URL and try again.",
-      "no_devices": "No supported gate channels were found on this account."
+      "no_devices": "No supported gate channels were found on this account.",
+      "wrong_account": "The signed-in account does not match this config entry."
     },
     "abort": {
-      "already_configured": "This account is already configured."
+      "already_configured": "This account is already configured.",
+      "reauth_success": "Re-authentication was successful."
     }
   }
 }

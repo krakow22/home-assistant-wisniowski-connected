@@ -10,7 +10,7 @@ import logging
 import time
 from typing import Any
 
-from aiohttp import ClientError, ClientSession, WSMsgType
+from aiohttp import ClientError, ClientSession, ClientTimeout, WSMsgType
 
 from .const import (
     CLIENT_ID,
@@ -29,6 +29,8 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+REQUEST_TIMEOUT = ClientTimeout(total=30)
 
 
 class WisniowskiError(Exception):
@@ -172,6 +174,7 @@ class WisniowskiClient:
         self._session = session
         self._data = dict(data)
         self._async_update_tokens = async_update_tokens
+        self._token_lock = asyncio.Lock()
 
     @classmethod
     async def async_from_code(
@@ -210,7 +213,7 @@ class WisniowskiClient:
     @staticmethod
     async def _async_token_request(session: ClientSession, data: dict[str, Any]) -> dict[str, Any]:
         try:
-            async with session.post(KEYCLOAK_TOKEN_URL, data=data) as response:
+            async with session.post(KEYCLOAK_TOKEN_URL, data=data, timeout=REQUEST_TIMEOUT) as response:
                 payload = await response.json(content_type=None)
                 if response.status >= 400:
                     description = payload.get("error_description") or payload.get("error") or response.reason
@@ -242,7 +245,7 @@ class WisniowskiClient:
 
         headers = {"Authorization": f"Bearer {await self.async_access_token()}"}
         try:
-            async with self._session.get(KEYCLOAK_USERINFO_URL, headers=headers) as response:
+            async with self._session.get(KEYCLOAK_USERINFO_URL, headers=headers, timeout=REQUEST_TIMEOUT) as response:
                 payload = await response.json(content_type=None)
                 if response.status >= 400:
                     raise WisniowskiAuthError(str(payload))
@@ -253,35 +256,47 @@ class WisniowskiClient:
     async def async_access_token(self) -> str:
         """Return a valid access token, refreshing and storing rotated tokens."""
 
-        if self._data.get(CONF_TOKEN) and float(self._data.get(CONF_EXPIRES_AT, 0)) > time.time() + 60:
+        if self._has_valid_access_token():
             return str(self._data[CONF_TOKEN])
 
-        refresh_token = self._data.get(CONF_REFRESH_TOKEN)
-        if not refresh_token:
-            raise WisniowskiAuthError("Missing refresh token")
+        async with self._token_lock:
+            if self._has_valid_access_token():
+                return str(self._data[CONF_TOKEN])
 
-        token_data = await self._async_token_request(
-            self._session,
-            {
-                "client_id": CLIENT_ID,
-                "grant_type": "refresh_token",
-                "refresh_token": refresh_token,
-            },
-        )
-        updated = dict(self._data)
-        updated[CONF_TOKEN] = token_data["access_token"]
-        updated[CONF_EXPIRES_AT] = _token_expiry(token_data)
-        refresh_expires_at = _optional_token_expiry(token_data, "refresh_expires_in")
-        if refresh_expires_at is not None:
-            updated[CONF_REFRESH_EXPIRES_AT] = refresh_expires_at
-        if new_refresh_token := token_data.get(CONF_REFRESH_TOKEN):
-            if new_refresh_token != refresh_token or not updated.get(CONF_REFRESH_TOKEN_UPDATED_AT):
-                updated[CONF_REFRESH_TOKEN_UPDATED_AT] = time.time()
-            updated[CONF_REFRESH_TOKEN] = new_refresh_token
-        self._data = updated
-        if self._async_update_tokens:
-            self._async_update_tokens(self.data)
+            refresh_token = self._data.get(CONF_REFRESH_TOKEN)
+            if not refresh_token:
+                raise WisniowskiAuthError("Missing refresh token")
+
+            token_data = await self._async_token_request(
+                self._session,
+                {
+                    "client_id": CLIENT_ID,
+                    "grant_type": "refresh_token",
+                    "refresh_token": refresh_token,
+                },
+            )
+            updated = dict(self._data)
+            updated[CONF_TOKEN] = token_data["access_token"]
+            updated[CONF_EXPIRES_AT] = _token_expiry(token_data)
+            refresh_expires_at = _optional_token_expiry(token_data, "refresh_expires_in")
+            if refresh_expires_at is not None:
+                updated[CONF_REFRESH_EXPIRES_AT] = refresh_expires_at
+            if new_refresh_token := token_data.get(CONF_REFRESH_TOKEN):
+                if new_refresh_token != refresh_token or not updated.get(CONF_REFRESH_TOKEN_UPDATED_AT):
+                    updated[CONF_REFRESH_TOKEN_UPDATED_AT] = time.time()
+                updated[CONF_REFRESH_TOKEN] = new_refresh_token
+            self._data = updated
+            if self._async_update_tokens:
+                self._async_update_tokens(self.data)
         return str(self._data[CONF_TOKEN])
+
+    def _has_valid_access_token(self) -> bool:
+        """Return whether the cached access token can be reused."""
+
+        try:
+            return bool(self._data.get(CONF_TOKEN)) and float(self._data.get(CONF_EXPIRES_AT, 0)) > time.time() + 60
+        except (TypeError, ValueError):
+            return False
 
     async def async_initialize(self) -> None:
         """Load installation metadata and switch to the selected broker URL."""
@@ -328,7 +343,7 @@ class WisniowskiClient:
         }
 
         try:
-            async with self._session.post(url, headers=headers, json=body) as response:
+            async with self._session.post(url, headers=headers, json=body, timeout=REQUEST_TIMEOUT) as response:
                 payload = await response.json(content_type=None)
                 if response.status == 401:
                     await self._force_refresh()
@@ -427,7 +442,12 @@ class WisniowskiClient:
             "installationId": str(self.installation_id or ""),
         }
         try:
-            async with self._session.post(f"{self.broker_url}{path}", headers=headers, json=payload) as response:
+            async with self._session.post(
+                f"{self.broker_url}{path}",
+                headers=headers,
+                json=payload,
+                timeout=REQUEST_TIMEOUT,
+            ) as response:
                 data = await response.json(content_type=None)
                 if response.status == 401:
                     await self._force_refresh()

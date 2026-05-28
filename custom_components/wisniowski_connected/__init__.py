@@ -5,9 +5,10 @@ from __future__ import annotations
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .api import WisniowskiClient
+from .api import WisniowskiAuthError, WisniowskiClient, WisniowskiError
 from .const import DATA_CLIENT, DATA_COORDINATOR, DOMAIN
 from .coordinator import WisniowskiCoordinator
 
@@ -25,10 +26,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         dict(entry.data),
         async_update_tokens=_update_tokens,
     )
-    await client.async_initialize()
 
-    coordinator = WisniowskiCoordinator(hass, client)
-    await coordinator.async_start()
+    try:
+        await client.async_initialize()
+        coordinator = WisniowskiCoordinator(hass, client)
+        await coordinator.async_start()
+    except WisniowskiAuthError as exc:
+        raise ConfigEntryAuthFailed(str(exc)) from exc
+    except WisniowskiError as exc:
+        raise ConfigEntryNotReady(str(exc)) from exc
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
         DATA_CLIENT: client,
