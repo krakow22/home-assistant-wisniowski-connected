@@ -344,10 +344,21 @@ class WisniowskiClient:
 
         try:
             async with self._session.post(url, headers=headers, json=body, timeout=REQUEST_TIMEOUT) as response:
-                payload = await response.json(content_type=None)
                 if response.status == 401:
                     await self._force_refresh()
                     return await self.async_graphql(operation_name, query, variables, broker_url)
+                raw = await response.text()
+                try:
+                    payload = json.loads(raw)
+                except ValueError:
+                    # Broker potrafi odpowiedzieć stroną błędu HTML (wygasła
+                    # sesja, 5xx za proxy) — wymuś odświeżenie tokenu przed
+                    # kolejnym odczytem i zgłoś błąd, który koordynator
+                    # obsłuży jako UpdateFailed zamiast nieznanego wyjątku.
+                    await self._force_refresh()
+                    raise WisniowskiApiError(
+                        f"non-JSON response HTTP {response.status}: {raw[:200]!r}"
+                    ) from None
                 if response.status >= 400:
                     raise WisniowskiApiError(str(payload))
                 if errors := payload.get("errors"):
